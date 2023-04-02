@@ -3,11 +3,16 @@ package main
 import (
 	"fmt"
 	"os"
-    "unicode"
-    "strings"
-    "strconv"
+	"regexp"
+	"strconv"
+	"strings"
+	"unicode"
 )
 
+
+func FormatedError(msg string, line int, position int) error {
+    return fmt.Errorf("Error: %s, at line %d, position %d", msg, line, position)
+}
 
 func GetFile() (string, error){
     if len(os.Args) < 2 {
@@ -91,9 +96,9 @@ func (i *InputStream) readNumber() int{
     return numberValue
 }
 
-func (i *InputStream) readWord(ending string) string {
+func (i *InputStream) ReadToDelimiter(delimiter string) string {
     word := ""
-    for !strings.Contains(i.Peek(), ending) {
+    for !strings.Contains(i.Peek(), delimiter) {
         word += i.GetNext()
     }
     return word
@@ -105,15 +110,76 @@ func (i *InputStream) SkipComment() {
     }
 }
 
-func Tokenize(stream InputStream) InputStream{
-    stream.skipWhitespaces()
-    switch stream.Peek() {
-    case "#":
-        stream.SkipComment()
-        return Tokenize(stream)
-        // TODO: Finish there
-
+func (i *InputStream) combainOpChar() string{
+    //+-*/%=&|<>!
+    combinations := []string{"<=", ">=", "!=", "||", "&&"}
+    current := i.GetNext()
+    comb := current + i.Peek()
+    
+    for _, possible := range combinations {
+        if comb == possible {
+            return comb
+        }
     }
+    return current
+}
+
+type TokenType int
+
+const (
+    NUMBER TokenType = iota
+    STRING
+    IDENTYFIER
+    KEYWORD
+    PUNC
+    OPERATOR
+)
+
+// Create Many tokens and token interfaces
+type Token struct {
+    class TokenType
+    value string
+}
+
+func isWord(char string) bool{
+    res,err := regexp.MatchString("w+", char)
+    if err != nil {
+        panic("Erro during matching string")
+    }
+    return res
+}
+
+func (i *InputStream) TokenizeNext() Token {
+    i.skipWhitespaces()
+    char := i.Peek()
+    switch {
+    case char == "#":
+        i.SkipComment()
+        return i.TokenizeNext()
+    case isDigit(char): 
+        return Token{NUMBER, i.readNumber()}
+    case char == "\"":
+        return Token{STRING, i.ReadToDelimiter("\"")}
+    case isPunct(char):
+        return Token{PUNC, i.GetNext()}
+    case isOpChar(char):
+        return Token{OPERATOR, i.combainOpChar()}
+    case isWord(char):
+        word := ""
+        for {
+            if !isWord(i.Peek()) { // Check for eof
+                break
+            }
+            word += i.GetNext()
+        }
+        token := Token{IDENTYFIER, word}
+        if isKeyword(word) {
+            token.class = KEYWORD
+        }
+        return token
+    }
+    errMsg := fmt.Sprintf("Unexpected character %s", i.Peek())
+    panic(FormatedError(errMsg, i.Line, i.Column))
 }
 
 func main(){
@@ -121,6 +187,8 @@ func main(){
     if err != nil {
         panic(err)
     } 
+    // TODO check eof
+    // TODO different Token types / interfaces
 
     stream := new(InputStream)
     stream.chars = fileData

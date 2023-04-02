@@ -2,6 +2,7 @@
 
 fn main() {
     # this is comment
+    22222
     a = 2
     b = a + 2
     print(a, b)

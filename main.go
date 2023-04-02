@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"unicode"
 )
 
 
@@ -64,29 +63,50 @@ type InputStream struct {
     Column int
 }
 
-func (i *InputStream) CurrentChar() string{
-    return string(i.chars[i.position])
-}
 
 func (i *InputStream) GetNext() string {
     i.position++
-    return i.CurrentChar()
+    return string(i.chars[i.position])
 }
 
-func (i InputStream) Peek() string {
-    return string(i.chars[i.position + 1])
+func (i InputStream) Peek() (string, error) {
+    if i.isEof() {
+        return "", fmt.Errorf("EOF")
+    }
+    return string(i.chars[i.position + 1]), nil
 }
 
 func (i *InputStream) skipWhitespaces() {
-    for unicode.IsSpace(rune(i.chars[i.position])) {
-        i.position++
+    for {
+        char, err := i.Peek()
+        if err != nil{
+            return
+        }
+        if strings.ContainsAny(char, " \t\r\f\v") {
+            i.position++
+            i.Column++
+        } else if char == "\n"{
+            i.position++
+            i.Line++
+            i.Column = 0
+        } else {
+            return
+        }
     }
 }
 
 func (i *InputStream) readNumber() int{
     numberString := ""
-    for isDigit(i.Peek()) {
-        numberString += i.GetNext()
+    for {
+        nextChar, err := i.Peek()
+        if err != nil {
+            return 0
+        }
+        if isDigit(nextChar) {
+            numberString += i.GetNext()
+        } else {
+            break
+        }
     }
 
     numberValue, err := strconv.Atoi(numberString)
@@ -98,30 +118,42 @@ func (i *InputStream) readNumber() int{
 
 func (i *InputStream) ReadToDelimiter(delimiter string) string {
     word := ""
-    for !strings.Contains(i.Peek(), delimiter) {
+    for {
+        nextChar, err := i.Peek()
+        if err != nil || strings.Contains(nextChar, delimiter){
+            break
+        }
         word += i.GetNext()
     }
     return word
 }
 
-func (i *InputStream) SkipComment() {
-    for i.CurrentChar() != "\n" || i.CurrentChar() == "#" {
+func (i *InputStream) SkipLine() {
+    for nextChar, err := i.Peek(); nextChar != "\n" || err != nil; nextChar, err = i.Peek(){
         i.position++
     }
 }
 
 func (i *InputStream) combainOpChar() string{
-    //+-*/%=&|<>!
     combinations := []string{"<=", ">=", "!=", "||", "&&"}
     current := i.GetNext()
-    comb := current + i.Peek()
-    
+    nextChar, err := i.Peek()
+    if err != nil {
+        return ""
+    }
+
+    comb := current + nextChar
+ 
     for _, possible := range combinations {
         if comb == possible {
             return comb
         }
     }
     return current
+}
+
+func (i *InputStream) isEof() bool {
+    return i.position + 1 >= len(i.chars)
 }
 
 type TokenType int
@@ -135,29 +167,44 @@ const (
     OPERATOR
 )
 
-// Create Many tokens and token interfaces
 type Token struct {
-    class TokenType
-    value string
+    Type TokenType
+    Value string
 }
 
 func isWord(char string) bool{
-    res,err := regexp.MatchString("w+", char)
+    res,err := regexp.MatchString("[A-z]", char)
     if err != nil {
-        panic("Erro during matching string")
+        panic("Error during matching string")
     }
     return res
 }
 
-func (i *InputStream) TokenizeNext() Token {
+func (i *InputStream) tokenizeWord() Token{ 
+        word := ""
+        for {
+            nextChar, err := i.Peek()
+            if err != nil || !isWord(nextChar) {
+                break
+            }
+            word += i.GetNext()
+        }
+        type_ := IDENTYFIER
+        if isKeyword(word) {
+            type_ = KEYWORD
+        }
+    return Token{type_, word}
+}
+
+func (i *InputStream) tokenizeNext() Token {
     i.skipWhitespaces()
-    char := i.Peek()
+    char, _ := i.Peek()
     switch {
     case char == "#":
-        i.SkipComment()
-        return i.TokenizeNext()
+        i.SkipLine()
+        return i.tokenizeNext()
     case isDigit(char): 
-        return Token{NUMBER, i.readNumber()}
+        return Token{NUMBER, fmt.Sprintf("%v", i.readNumber())}
     case char == "\"":
         return Token{STRING, i.ReadToDelimiter("\"")}
     case isPunct(char):
@@ -165,21 +212,21 @@ func (i *InputStream) TokenizeNext() Token {
     case isOpChar(char):
         return Token{OPERATOR, i.combainOpChar()}
     case isWord(char):
-        word := ""
-        for {
-            if !isWord(i.Peek()) { // Check for eof
-                break
-            }
-            word += i.GetNext()
-        }
-        token := Token{IDENTYFIER, word}
-        if isKeyword(word) {
-            token.class = KEYWORD
-        }
-        return token
+        return i.tokenizeWord()
     }
-    errMsg := fmt.Sprintf("Unexpected character %s", i.Peek())
+
+    errMsg := fmt.Sprintf("Unexpected character %s", char)
     panic(FormatedError(errMsg, i.Line, i.Column))
+}
+
+func (i *InputStream) Tokenize() []*Token {
+    tokens := make([]*Token, 0)
+    for !i.isEof() {
+        newToken := i.tokenizeNext()
+        fmt.Println(newToken)
+        tokens = append(tokens, &newToken)
+    }
+    return tokens
 }
 
 func main(){
@@ -187,10 +234,12 @@ func main(){
     if err != nil {
         panic(err)
     } 
-    // TODO check eof
-    // TODO different Token types / interfaces
+    
+    stream := InputStream{fileData, 0, 1, 0}
+    tokens := stream.Tokenize()
 
-    stream := new(InputStream)
-    stream.chars = fileData
+    for _, token := range tokens {
+        fmt.Println(token)
+    }
 
 }

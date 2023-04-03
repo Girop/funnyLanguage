@@ -9,7 +9,7 @@ import (
 )
 
 
-func FormatedError(msg string, line int, position int) error {
+func FormatedPositonedError(msg string, line int, position int) error {
     return fmt.Errorf("Error: %s, at line %d, position %d", msg, line, position)
 }
 
@@ -173,7 +173,7 @@ type Token struct {
 }
 
 func isWord(char string) bool{
-    res,err := regexp.MatchString("[A-z]", char)
+    res,err := regexp.MatchString("[A-z]_", char)
     if err != nil {
         panic("Error during matching string")
     }
@@ -216,17 +216,119 @@ func (i *InputStream) tokenizeNext() Token {
     }
 
     errMsg := fmt.Sprintf("Unexpected character %s", char)
-    panic(FormatedError(errMsg, i.Line, i.Column))
+    panic(FormatedPositonedError(errMsg, i.Line, i.Column))
 }
 
 func (i *InputStream) Tokenize() []*Token {
     tokens := make([]*Token, 0)
     for !i.isEof() {
         newToken := i.tokenizeNext()
-        fmt.Println(newToken)
         tokens = append(tokens, &newToken)
     }
     return tokens
+}
+
+// Ast
+func getPrecedence(op Token) int {
+    precedence := map[string]int {
+        "=": 1,
+        "||": 2, "&&": 2,
+        "<": 3, "<=":3, ">": 3, ">=": 3,
+        "+": 4, "-": 4,
+        "*": 5, "/": 5, "%": 5,
+    }
+    if op.Type != OPERATOR {
+        return 0
+    }
+    return precedence[op.Value]
+}
+
+func FormatedUnexpectedTokenError(name string) error {
+    return fmt.Errorf("Parser error, unexpected token: ", name)
+}
+
+type AstNode interface{
+}
+
+type AstToken struct {
+    Type string
+}
+
+type FunctionAst struct {
+    Args []Token
+    body *AstNode
+}
+
+type Parser struct {
+    tokens []*Token
+    position int
+}
+
+func (p Parser) peek() (*Token, error) {
+    if p.endOfTokens() {
+        return nil, fmt.Errorf("EOT")
+    }
+    return p.tokens[p.position + 1], nil
+}
+
+func (p *Parser) getNext() *Token {
+    p.position++
+    return p.tokens[p.position + 1]
+}
+
+func (p *Parser) endOfTokens() bool{
+    if p.position >= len(p.tokens) {
+        return true
+    }
+    return false
+}
+
+
+func parseDelimiters(start Token, end Token) {
+
+}
+
+func (p *Parser) parseFunction() (*AstNode, error){
+    newFunc := new(FunctionAst)
+    funcName := p.getNext()
+    if funcName.Type != IDENTYFIER {
+        return nil, FormatedUnexpectedTokenError(funcName.Value)
+    }
+    return newFunc, nil
+}
+
+func isMain(token1 *Token, token2 *Token) bool{
+    return token1.Type == KEYWORD && 
+    token1.Value == "fn" && 
+    token2.Type == IDENTYFIER && 
+    token2.Value == "main"
+}
+
+func (p *Parser) parseEntryPoint() (*AstNode, error){
+    for i, token := range p.tokens {
+        p.position = i
+
+        nextTok, err := p.peek()
+        if err != nil {
+            return nil, fmt.Errorf("No entry point (fn main{}) found")
+        }
+        if isMain(token, nextTok) {
+            mainFunc, err := p.parseFunction()
+            if err != nil {
+                return nil, err
+            }
+            return mainFunc, nil
+        }
+    }
+    return nil, fmt.Errorf("No idea what happend, parseEntryPoint func")
+}
+
+func (p *Parser) Parse() *AstNode{
+    topNode, err := p.parseEntryPoint()
+    if err != nil {
+        panic(err)
+    }
+    return topNode
 }
 
 func main(){
@@ -237,9 +339,7 @@ func main(){
     
     stream := InputStream{fileData, 0, 1, 0}
     tokens := stream.Tokenize()
-
-    for _, token := range tokens {
-        fmt.Println(token)
-    }
-
+    parser := Parser{tokens, 0}
+    ast := parser.Parse()
+    fmt.Println(ast)
 }

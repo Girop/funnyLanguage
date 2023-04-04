@@ -1,4 +1,4 @@
-package main
+package lexer
 
 import (
 	"fmt"
@@ -156,7 +156,7 @@ type Token struct {
 }
 
 func isWord(char string) bool {
-	res, err := regexp.MatchString("[A-z]_", char)
+	res, err := regexp.MatchString("[A-z_]", char)
 	if err != nil {
 		panic("Error during matching string")
 	}
@@ -209,4 +209,13 @@ func (i *InputStream) Tokenize() []*Token {
 		tokens = append(tokens, &newToken)
 	}
 	return tokens
+}
+
+func NewStream(file string) *InputStream {
+	return &InputStream{
+		file,
+		0,
+		1,
+		1,
+	}
 }

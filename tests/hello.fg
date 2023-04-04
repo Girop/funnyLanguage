@@ -1,6 +1,9 @@
 
 
 fn main() {
+    fn thing(a number, b string){
+        
+    }
     # this is comment
     c = 22222
     a = 2

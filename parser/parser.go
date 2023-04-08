@@ -100,11 +100,12 @@ func (p *Parser) parseArgs() (ArgsAst, error) {
 }
 
 func (p *Parser) parseBody() (*Prog, error) { 
-    opening, ending := lexer.Token{lexer.PUNC, "{"}, lexer.Token{lexer.PUNC, "}"}
-    tokens, err := p.tokensInsideDelimiters(opening, ending)
-    if err != nil {
-        return nil, err
-    }
+    // TODO:
+    // opening, ending := lexer.Token{lexer.PUNC, "{"}, lexer.Token{lexer.PUNC, "}"}
+    // _, err := p.tokensInsideDelimiters(opening, ending)
+    // if err != nil {
+    //     return nil, err
+    // }
 
     body := new(Prog)
     // TODO: finsh from here
@@ -171,3 +172,4 @@ func NewParser(tokens []*lexer.Token) *Parser {
 		0,
 	}
 }
+

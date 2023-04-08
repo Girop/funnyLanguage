@@ -38,13 +38,14 @@ type InputStream struct {
 	line     int
 	column   int
     // Note: Anywhere error occurs, if is serious it should be explicitly
-    // set as 'terminating' by appending to this slice, allow porgram 
-    // to find another errors but preventing from entering next phase of parsing
+    // set as 'terminating' by appending to this slice, allowing program 
+    // to find another errors but, preventing from entering next phase of parsing
 	errors []error
 }
 
 // Important: use only if sure, that next token exists FIXME
 func (i *InputStream) getNext() string {
+    i.position++
 	return string(i.chars[i.position])
 }
 
@@ -150,7 +151,6 @@ func (i *InputStream) combainOpChar() string {
 	}
 
 	comb := current + nextChar
-
 	for _, possible := range combinations {
 		if comb == possible {
 			return comb
@@ -241,4 +241,8 @@ func NewStream(file string) *InputStream {
 	stream.line = 1
 	stream.line = 1
 	return stream
+}
+
+func Tokenize(file string) []*Token {
+    return NewStream(file).Tokenize()
 }

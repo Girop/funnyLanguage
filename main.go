@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"language/lexer"
-	"language/parser"
+	// "language/parser"
 	"os"
 )
 
@@ -26,7 +26,9 @@ func main() {
 		panic(err)
 	}
 
-	tokens := lexer.NewStream(fileData).Tokenize()
-	ast := parser.NewParser(tokens).Parse()
-	fmt.Println(ast)
+	tokens := lexer.Tokenize(fileData)
+    fmt.Println(tokens)
+
+	// ast := parser.NewParser(tokens).Parse()
+	// fmt.Println(ast)
 }

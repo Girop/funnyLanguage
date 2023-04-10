@@ -28,7 +28,7 @@ func main() {
 
 	tokens := lexer.Tokenize(fileData)
     for _, token := range tokens {
-        fmt.Println(token.Value)
+        fmt.Println(token)
     }
 
 	// ast := parser.NewParser(tokens).Parse()

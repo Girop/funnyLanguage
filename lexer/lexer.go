@@ -16,13 +16,17 @@ const (
 	// Words
 	IDENTYFIER
 	KEYWORD
+	TYPE_ANNOTATION
 
 	// Other
 	PUNC
 	END_OF_LINE
 	OPERATOR
-	TYPE_ANNOTATION
+	LAST_TOKEN
 )
+
+// TODO fix Column positioning
+// TODO write some tests
 
 type Token struct {
 	Type      TokenType
@@ -40,7 +44,7 @@ type InputStream struct {
 	position int
 	line     int
 	column   int
-	// Note: Anywhere error occurs, if is serious it should be explicitly
+	// Anywhere error occurs, if is serious it should be explicitly
 	// set as 'terminating' by appending to this slice, allowing program
 	// to find another errors but, preventing from entering next phase of parsing
 	errors []error
@@ -85,8 +89,8 @@ func (i *InputStream) readNumber() string {
 
 	for {
 		nextChar := i.peek()
-		switch{
-        case isDigit(nextChar):
+		switch {
+		case isDigit(nextChar):
 			numberString += i.getNext()
 		case nextChar == "." && !sepratorOccured:
 			sepratorOccured = true
@@ -102,13 +106,15 @@ func (i *InputStream) readNumber() string {
 
 func (i *InputStream) readToDelimiter(delimiter string) string {
 	word := ""
-	for {
+
+    for {
 		nextChar := i.getNext()
 		if strings.Contains(nextChar, delimiter) {
 			break
 		}
 		word += nextChar
 	}
+
 	return word
 }
 
@@ -120,10 +126,8 @@ func (i *InputStream) skipLine() {
 
 func (i *InputStream) handleOpChar() *Token {
 	nextChar := i.combainOpChar()
-	if nextChar == "<" && i.peekAfterWord() == ">" {
-		annotation := i.getNext() + i.readToDelimiter(">")
-		i.getNext()
-		return i.newToken(TYPE_ANNOTATION, "<" + annotation + ">")
+	if len(nextChar) == 1 && nextChar == "<" && i.peekAfterWord() == ">" {
+		return i.newToken(TYPE_ANNOTATION, i.getNext() + i.readToDelimiter(">"))
 	}
 	return i.newToken(OPERATOR, nextChar)
 }
@@ -134,9 +138,10 @@ func (i InputStream) peekAfterWord() string {
 	return i.getNext()
 }
 
+var combinations = []string{"<=", ">=", "!=", "||", "&&"}
+
 func (i *InputStream) combainOpChar() string {
-	combinations := []string{"<=", ">=", "!=", "||", "&&"}
-    current := i.getNext()
+	current := i.getNext()
 	comb := current + i.peek()
 
 	for _, possible := range combinations {
@@ -148,15 +153,13 @@ func (i *InputStream) combainOpChar() string {
 }
 
 func (i *InputStream) isEof() bool {
-	return i.position + 1 >= len(i.chars)
+	return i.position+1 >= len(i.chars)
 }
 
 func (i *InputStream) parseWord() string {
 	word := ""
-	for {
-		if !isChar(i.peek()) {
-			break
-		}
+
+    for char := i.peek(); isChar(char); char = i.peek(){	
 		word += i.getNext()
 	}
 	return word
@@ -200,22 +203,31 @@ func (i *InputStream) tokenizeNext() *Token {
 	case isOpChar(char):
 		return i.handleOpChar()
 	case isStringStart(char):
+        i.getNext() // Skipping "
 		return i.newToken(STRING, i.readToDelimiter("\""))
 	case isChar(char):
 		return i.tokenizeWord()
 	}
 
-	err := formatedPositonedError(fmt.Sprint("Unexpected character: ", char), *i)
-	i.errors = append(i.errors, err)
-	return nil
+	if !i.isEof() {
+		err := formatedPositonedError(fmt.Sprint("Unexpected character: ", char), *i)
+		i.errors = append(i.errors, err)
+	}
+	return i.newToken(LAST_TOKEN, "END")
 }
 
 func (i *InputStream) Tokenize() []*Token {
 	tokens := make([]*Token, 0)
-	i.skipWhitespaces()
+    prevToken := i.newToken(END_OF_LINE, ";")
 
 	for !i.isEof() {
-        tokens = append(tokens, i.tokenizeNext())
+        newToken := i.tokenizeNext()
+        if newToken.Line != prevToken.Line && canInsertSemicolon(prevToken.Value) {
+            tokens = append(tokens, i.newToken(END_OF_LINE, ";"))
+        }
+    
+        prevToken = newToken
+		tokens = append(tokens, newToken)
 	}
 
 	if len(i.errors) > 0 {
@@ -229,14 +241,13 @@ func (i *InputStream) ShowErrorMsg() {
 	for index, errMsg := range i.errors {
 		msg += fmt.Sprintf("%d. %s\n", index, errMsg)
 	}
-	panic(msg)
 }
 
 func NewStream(file string) *InputStream {
 	stream := new(InputStream)
 	stream.chars = file
 	stream.line = 1
-	stream.line = 1
+	stream.column = 1
 	return stream
 }
 

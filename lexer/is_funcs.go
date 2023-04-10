@@ -2,28 +2,28 @@ package lexer
 
 import (
 	"regexp"
-	"strings"
 )
 
+var digitRe = regexp.MustCompile("[0-9]")
+var opCharRe = regexp.MustCompile(`[+\-*/%=&|<>!]`)
+var punctRe = regexp.MustCompile(`[,\(\)\{\}\[\]]`)
+var semicolonRe = regexp.MustCompile(`[{\(;]`)
+var charRe = regexp.MustCompile("[A-z_]")
+
 func isChar(char string) bool {
-	res, err := regexp.MatchString("[A-z_]", char)
-	if err != nil {
-		return false
-	}
-	return res
+	return charRe.MatchString(char)
 }
 
 func isDigit(char string) bool {
-    val, _ := regexp.MatchString("[0-9]", char)
-    return val
+	return digitRe.MatchString(char)
 }
 
 func isOpChar(char string) bool {
-	return strings.Contains("+-*/%=&|<>!", char)
+	return opCharRe.MatchString(char)
 }
 
 func isPunct(char string) bool {
-	return strings.Contains(",(){}[]", char)
+	return punctRe.MatchString(char)
 }
 
 func isCommentStart(char string) bool {
@@ -34,15 +34,15 @@ func isStringStart(char string) bool {
 	return char == "\""
 }
 
-func canInsertSemicolon(char  string) bool {
-    return !strings.Contains("{(;,",char)
+func canInsertSemicolon(char string) bool {
+	return !semicolonRe.MatchString(char)
 }
 
 var keywords = [...]string{
 	"fn",
 	"if",
 	"else",
-    "return",
+	"return",
 }
 
 func isKeyword(word string) bool {

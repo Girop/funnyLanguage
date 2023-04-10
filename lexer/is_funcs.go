@@ -14,7 +14,8 @@ func isChar(char string) bool {
 }
 
 func isDigit(char string) bool {
-	return strings.Contains("0123456789", char)
+    val, _ := regexp.MatchString("[0-9]", char)
+    return val
 }
 
 func isOpChar(char string) bool {
@@ -22,7 +23,7 @@ func isOpChar(char string) bool {
 }
 
 func isPunct(char string) bool {
-	return strings.Contains(",;(){}[]", char)
+	return strings.Contains(",(){}[]", char)
 }
 
 func isCommentStart(char string) bool {
@@ -31,6 +32,10 @@ func isCommentStart(char string) bool {
 
 func isStringStart(char string) bool {
 	return char == "\""
+}
+
+func canInsertSemicolon(char  string) bool {
+    return !strings.Contains("{(;,",char)
 }
 
 var keywords = [...]string{

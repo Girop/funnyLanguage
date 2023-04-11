@@ -23,10 +23,12 @@ func GetFile() (string, error) {
 func main() {
 	fileData, err := GetFile()
 	if err != nil {
-		panic(err)
+        fmt.Println("File not specified")
+        os.Exit(1)
 	}
 
 	tokens := lexer.Tokenize(fileData)
+
     for _, token := range tokens {
         fmt.Println(token)
     }

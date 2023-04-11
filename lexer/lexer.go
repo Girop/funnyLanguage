@@ -13,12 +13,14 @@ const (
 	STRING
 	BOOLEAN
 
-	// Words
+	// Words & keywords
 	IDENTYFIER
-	KEYWORD
+	FUNC_DECLARATION
+	CONTROL_FLOW
 	TYPE_ANNOTATION
+	OTHER_KEYWORD
 
-	// Other
+	// Punctuation
 	PUNC
 	END_OF_LINE
 	OPERATOR
@@ -107,7 +109,7 @@ func (i *InputStream) readNumber() string {
 func (i *InputStream) readToDelimiter(delimiter string) string {
 	word := ""
 
-    for {
+	for {
 		nextChar := i.getNext()
 		if strings.Contains(nextChar, delimiter) {
 			break
@@ -127,7 +129,7 @@ func (i *InputStream) skipLine() {
 func (i *InputStream) handleOpChar() *Token {
 	nextChar := i.combainOpChar()
 	if len(nextChar) == 1 && nextChar == "<" && i.peekAfterWord() == ">" {
-		return i.newToken(TYPE_ANNOTATION, i.getNext() + i.readToDelimiter(">"))
+		return i.newToken(TYPE_ANNOTATION, i.getNext()+i.readToDelimiter(">"))
 	}
 	return i.newToken(OPERATOR, nextChar)
 }
@@ -138,7 +140,7 @@ func (i InputStream) peekAfterWord() string {
 	return i.getNext()
 }
 
-var combinations = []string{"<=", ">=", "!=", "||", "&&"}
+var combinations = []string{"<=", ">=", "!=", "==", "||", "&&"}
 
 func (i *InputStream) combainOpChar() string {
 	current := i.getNext()
@@ -159,7 +161,7 @@ func (i *InputStream) isEof() bool {
 func (i *InputStream) parseWord() string {
 	word := ""
 
-    for char := i.peek(); isChar(char); char = i.peek(){	
+	for char := i.peek(); isChar(char); char = i.peek() {
 		word += i.getNext()
 	}
 	return word
@@ -169,12 +171,16 @@ func (i *InputStream) tokenizeWord() *Token {
 	word := i.parseWord()
 	var type_ TokenType
 	switch {
-	case isKeyword(word):
-		type_ = KEYWORD
+	case isControlFlow(word):
+		type_ = CONTROL_FLOW
+	case isFuncDecl(word):
+		type_ = FUNC_DECLARATION
 	case isBoolean(word):
 		type_ = BOOLEAN
 	default:
 		type_ = IDENTYFIER
+	case isKeyword(word):
+		type_ = OTHER_KEYWORD
 	}
 	return i.newToken(type_, word)
 }
@@ -203,7 +209,7 @@ func (i *InputStream) tokenizeNext() *Token {
 	case isOpChar(char):
 		return i.handleOpChar()
 	case isStringStart(char):
-        i.getNext() // Skipping "
+		i.getNext() // Skipping "
 		return i.newToken(STRING, i.readToDelimiter("\""))
 	case isChar(char):
 		return i.tokenizeWord()
@@ -218,15 +224,15 @@ func (i *InputStream) tokenizeNext() *Token {
 
 func (i *InputStream) Tokenize() []*Token {
 	tokens := make([]*Token, 0)
-    prevToken := i.newToken(END_OF_LINE, ";")
+	prevToken := i.newToken(END_OF_LINE, ";")
 
 	for !i.isEof() {
-        newToken := i.tokenizeNext()
-        if newToken.Line != prevToken.Line && canInsertSemicolon(prevToken.Value) {
-            tokens = append(tokens, i.newToken(END_OF_LINE, ";"))
-        }
-    
-        prevToken = newToken
+		newToken := i.tokenizeNext()
+		if newToken.Line != prevToken.Line && canInsertSemicolon(prevToken.Value) {
+			tokens = append(tokens, i.newToken(END_OF_LINE, ";"))
+		}
+
+		prevToken = newToken
 		tokens = append(tokens, newToken)
 	}
 

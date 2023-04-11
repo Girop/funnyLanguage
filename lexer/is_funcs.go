@@ -38,10 +38,25 @@ func canInsertSemicolon(char string) bool {
 	return !semicolonRe.MatchString(char)
 }
 
-var keywords = [...]string{
-	"fn",
+var controlFlow = [...]string{
 	"if",
 	"else",
+}
+
+func isControlFlow(word string) bool {
+	for _, val := range controlFlow {
+		if val == word {
+			return true
+		}
+	}
+	return false
+}
+
+func isFuncDecl(word string) bool {
+	return word == "fn"
+}
+
+var keywords = [...]string{
 	"return",
 }
 

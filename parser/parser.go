@@ -1,11 +1,10 @@
 package parser
-
 import (
 	"fmt"
 	"language/lexer"
 )
 
-// TODO: make sure only one field exists
+// TODO: make sure only one field exists / delete
 // TODO: swap somehow for TokenTypes from lexer
 type PrimitiveUnion struct {
 	string  string
@@ -80,14 +79,28 @@ func (p *Parser) match(types ...lexer.TokenType) bool {
     return false
 }
 
+func (p *Parser) matchSequence(types ...lexer.TokenType) bool {
+    for _, nextType := range types {
+        if p.peek().Type == nextType {
+            p.getNext()
+        } else {
+            return false
+        }
+    }
+    return true
+}
+
 var binaryOperators = [...]string {
     ">", ">=", "<", "<=", "==", "!=", "+", "-", "&&", "||", "*", "**",
 }
 
-func (p *Parser) binary() *BinaryExpr {
-    for p.match() {
-        
-    }  
+func (p *Parser) function() *FunctionExpr {
+    newFunc := new(FunctionExpr)
+    if p.matchSequence(lexer.FUNC_DECLARATION, lexer.IDENTYFIER, lexer.PUNC) {
+
+    }
+    p.errors = append(p.errors, unexpectedToken(p.peekPrev()))
+    return nil
 }
 
 func (p *Parser) isEOT() bool {
@@ -96,6 +109,13 @@ func (p *Parser) isEOT() bool {
 
 func unexpectedToken(token *lexer.Token) error {
 	return fmt.Errorf("Parsing error: unexpected token %s at line %d, position %d", token.Value, token.Line, token.ColumnPos)
+}
+
+func (p *Parser) parseNext() {
+    switch p.peek().Type {
+    case lexer.FUNC_DECLARATION:
+        p.function()
+    }
 }
 
 func NewParser(tokens []*lexer.Token) *Parser {

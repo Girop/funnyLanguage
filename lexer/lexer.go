@@ -21,8 +21,11 @@ const (
 	OTHER_KEYWORD
 
 	// Punctuation
-	PUNC
-	END_OF_LINE
+	OPENING_PAR // (
+	CLOSING_PAR // )
+	OPEN_SCOPE      // {
+	CLOSE_SCOPE     // }
+	END_OF_LINE  // ;
 	OPERATOR
 	LAST_TOKEN
 )
@@ -194,6 +197,22 @@ func (i InputStream) newToken(type_ TokenType, value string) *Token {
 	}
 }
 
+// TODO: handle every punctuation ; []
+var charToType = map[string]TokenType {
+    "{": OPEN_SCOPE,
+    "}": CLOSE_SCOPE,
+    "(": OPENING_PAR,
+    ")": CLOSING_PAR,
+    "[": 
+    "]": 
+    ";": END_OF_LINE
+}
+
+func (i *InputStream) handlePunctuation() *Token {
+	char := i.getNext()
+    return i.newToken(charToType[char], char)
+}
+
 func (i *InputStream) tokenizeNext() *Token {
 	i.skipWhitespaces()
 	char := i.peek()
@@ -205,7 +224,7 @@ func (i *InputStream) tokenizeNext() *Token {
 	case isDigit(char):
 		return i.newToken(NUMBER, i.readNumber())
 	case isPunct(char):
-		return i.newToken(PUNC, i.getNext())
+		return i.handlePunctuation()
 	case isOpChar(char):
 		return i.handleOpChar()
 	case isStringStart(char):
